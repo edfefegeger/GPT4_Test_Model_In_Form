@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import torch
+
 app = Flask(__name__)
 
-model_name = "gpt2" 
+model_name = "HuggingFaceH4/zephyr-7b-alpha"
 model = GPT2LMHeadModel.from_pretrained(model_name)
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 
@@ -15,16 +16,13 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GPT-2 Alpaca Generator</title>
+        <title>GPT-3 Alpaca Generator</title>
     </head>
     <body>
-        <h1>GPT-2 Alpaca Generator</h1>
+        <h1>GPT-3 Alpaca Generator</h1>
         <form id="generate-form">
             <label for="prompt">Введите текст:</label>
             <input type="text" id="prompt" name="prompt" required>
-            <br>
-            <label for="max-length">Максимальная длина текста (по умолчанию 100):</label>
-            <input type="number" id="max-length" name="max_length" value="100">
             <br>
             <button type="submit">Сгенерировать</button>
         </form>
@@ -34,18 +32,8 @@ def index():
             document.getElementById('generate-form').addEventListener('submit', function(event) {
                 event.preventDefault();
                 const prompt = document.getElementById('prompt').value;
-                const maxLength = document.getElementById('max-length').value;
 
-                fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        max_length: parseInt(maxLength)  // Преобразовать в целое число
-                    })
-                })
+                fetch(`/?text=${encodeURIComponent(prompt)}`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('generated-text').innerText = 'Сгенерированный текст: ' + data.generated_text;
@@ -57,19 +45,21 @@ def index():
     </html>
     '''
 
-@app.route('/generate', methods=['POST'])
+@app.route('/', methods=['GET'])
 def generate_text():
     try:
-        data = request.get_json()
-        prompt = data['prompt']
-        max_length = data.get('max_length', 100)
-
+        prompt = request.args.get('text', '')
+        
         input_ids = tokenizer.encode(prompt, return_tensors='pt')
 
         with torch.no_grad():
-            output = model.generate(input_ids, max_length=max_length, pad_token_id=tokenizer.eos_token_id)
+            output = model.generate(input_ids, max_length=100, pad_token_id=tokenizer.eos_token_id, no_repeat_ngram_size=2, top_k=50, top_p=0.95, temperature=0.7)
 
         generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+        
+        
+        generated_text = ' '.join(dict.fromkeys(generated_text.split()))
+
         return jsonify({'generated_text': generated_text})
     except Exception as e:
         print(f"Error: {str(e)}")
