@@ -5,12 +5,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from flask_caching import Cache
 
-app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+from flask import Flask
 
-model_name = "chavinlo/gpt4-x-alpaca"
-model = AutoModelForCausalLM.from_pretrained(model_name)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+app = Flask(__name__)
 
 @app.route('/')
 def index():
@@ -20,10 +17,10 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GPT-4 Alpaca Generator</title>
+        <title>Форма для ввода текста</title>
     </head>
     <body>
-        <h1>GPT-4 Alpaca Generator</h1>
+        <h1>Форма для ввода текста</h1>
         <form id="generate-form">
             <label for="prompt">Введите текст:</label>
             <input type="text" id="prompt" name="prompt" required>
@@ -41,41 +38,31 @@ def index():
                 const prompt = document.getElementById('prompt').value;
                 const maxLength = document.getElementById('max-length').value;
 
-                fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        max_length: maxLength
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('generated-text').innerText = 'Сгенерированный текст: ' + data.generated_text;
-                })
-                .catch(error => console.error(error));
+
+
+                // fetch('/generate', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json'
+                //     },
+                //     body: JSON.stringify({
+                //         prompt: prompt,
+                //         max_length: maxLength
+                //     })
+                // })
+                // .then(response => response.json())
+                // .then(data => {
+                //     document.getElementById('generated-text').innerText = 'Сгенерированный текст: ' + data.generated_text;
+                // })
+                // .catch(error => console.error(error));
+
+                // generated_text = process_text(prompt, maxLength);
+                // document.getElementById('generated-text').innerText = 'Сгенерированный текст: ' + generated_text;
             });
         </script>
     </body>
     </html>
     '''
-
-@app.route('/generate', methods=['POST'])
-@cache.cached(timeout=60)  # кэширование на 60 секунд
-def generate_text():
-    data = request.get_json()
-    prompt = data['prompt']
-    max_length = data.get('max_length', 100)
-
-    input_ids = tokenizer.encode(prompt, return_tensors='pt')
-
-    with torch.no_grad():
-        output = model.generate(input_ids, max_length=max_length)
-
-    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-    return jsonify({'generated_text': generated_text})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
