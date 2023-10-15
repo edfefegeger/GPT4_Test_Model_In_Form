@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify
-import openai
-from flask_caching import Cache
-
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-openai.api_key = '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'
+model_name = "gpt2" 
+model = GPT2LMHeadModel.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 
 @app.route('/')
 def index():
@@ -15,10 +15,10 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GPT-3 Alpaca Generator</title>
+        <title>GPT-2 Alpaca Generator</title>
     </head>
     <body>
-        <h1>GPT-3 Alpaca Generator</h1>
+        <h1>GPT-2 Alpaca Generator</h1>
         <form id="generate-form">
             <label for="prompt">Введите текст:</label>
             <input type="text" id="prompt" name="prompt" required>
@@ -58,25 +58,22 @@ def index():
     '''
 
 @app.route('/generate', methods=['POST'])
-@cache.cached(timeout=60)  # кэширование на 60 секунд
 def generate_text():
     try:
         data = request.get_json()
         prompt = data['prompt']
         max_length = data.get('max_length', 100)
 
-        response = openai.Completion.create(
-            engine="davinci",
-            prompt=prompt,
-            max_tokens=max_length,
-            n=1
-        )
+        input_ids = tokenizer.encode(prompt, return_tensors='pt')
 
-        generated_text = response.choices[0].text.strip()
+        with torch.no_grad():
+            output = model.generate(input_ids, max_length=max_length, pad_token_id=tokenizer.eos_token_id)
+
+        generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
         return jsonify({'generated_text': generated_text})
     except Exception as e:
         print(f"Error: {str(e)}")
-        # Запись информации об ошибке в лог-файл или консоль
+
         return jsonify({'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
