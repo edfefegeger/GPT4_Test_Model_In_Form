@@ -1,12 +1,9 @@
 from flask import Flask, request, jsonify
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import pipeline
 import torch
 
 app = Flask(__name__)
-
-model_name = "HuggingFaceH4/zephyr-7b-alpha"
-model = GPT2LMHeadModel.from_pretrained(model_name)
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+pipe = pipeline("text-generation", model="HuggingFaceH4/zephyr-7b-alpha", torch_dtype=torch.bfloat16, device_map="auto")
 
 @app.route('/')
 def index():
@@ -50,20 +47,17 @@ def generate_text():
     try:
         prompt = request.args.get('text', '')
         
-        input_ids = tokenizer.encode(prompt, return_tensors='pt')
-
-        with torch.no_grad():
-            output = model.generate(input_ids, max_length=100, pad_token_id=tokenizer.eos_token_id, no_repeat_ngram_size=2, top_k=50, top_p=0.95, temperature=0.7)
-
-        generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+        messages = [
+            {"role": "system", "content": "You are a friendly chatbot who always responds in the style of a pirate"},
+            {"role": "user", "content": prompt},
+        ]
+        prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
+        generated_text = outputs[0]["generated_text"]
         
-        
-        generated_text = ' '.join(dict.fromkeys(generated_text.split()))
-
         return jsonify({'generated_text': generated_text})
     except Exception as e:
         print(f"Error: {str(e)}")
-
         return jsonify({'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
