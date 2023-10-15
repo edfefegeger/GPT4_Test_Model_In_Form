@@ -3,8 +3,10 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from flask_caching import Cache
 
 app = Flask(__name__)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 model_name = "chavinlo/gpt4-x-alpaca"
 model = AutoModelForCausalLM.from_pretrained(model_name)
@@ -61,6 +63,7 @@ def index():
     '''
 
 @app.route('/generate', methods=['POST'])
+@cache.cached(timeout=60)  # кэширование на 60 секунд
 def generate_text():
     data = request.get_json()
     prompt = data['prompt']
