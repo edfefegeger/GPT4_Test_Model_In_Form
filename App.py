@@ -30,7 +30,15 @@ def index():
                 event.preventDefault();
                 const prompt = document.getElementById('prompt').value;
 
-                fetch(`/?text=${encodeURIComponent(prompt)}`)
+                fetch('/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt
+                    })
+                })
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('generated-text').innerText = 'Сгенерированный текст: ' + data.generated_text;
@@ -45,8 +53,9 @@ def index():
 @app.route('/', methods=['POST'])
 def generate_text():
     try:
-        prompt = request.args.get('text', '')
-        
+        data = request.get_json()
+        prompt = data['prompt']
+
         messages = [
             {"role": "system", "content": "You are a friendly chatbot who always responds in the style of a pirate"},
             {"role": "user", "content": prompt},
