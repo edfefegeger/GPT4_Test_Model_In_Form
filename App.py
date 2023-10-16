@@ -42,7 +42,7 @@ def index():
     </html>
     '''
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['POST'])
 def generate_text():
     try:
         prompt = request.args.get('text', '')
