@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 import torch
 
 app = Flask(__name__)
-pipe = pipeline("text-generation", model="HuggingFaceH4/zephyr-7b-alpha", torch_dtype=torch.bfloat16, device_map="auto")
+TOKEN = "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"
 
+pipe = pipeline("text-generation", model="meta-llama/Llama-2-70b-chat-hf", torch_dtype=torch.float32, device=0, token=TOKEN)  # Используйте новую модель
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-70b-chat-hf")
 @app.route('/')
 def index():
     return '''
@@ -30,7 +32,7 @@ def index():
                 event.preventDefault();
                 const prompt = document.getElementById('prompt').value;
 
-                fetch('/', {
+                fetch('/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -50,19 +52,17 @@ def index():
     </html>
     '''
 
-@app.route('/', methods=['POST'])
+@app.route('/generate', methods=['POST'])
 def generate_text():
     try:
         data = request.get_json()
         prompt = data['prompt']
 
-        messages = [
-            {"role": "system", "content": "You are a friendly chatbot who always responds in the style of a pirate"},
-            {"role": "user", "content": prompt},
-        ]
-        prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
-        generated_text = outputs[0]["generated_text"]
+        # Добавьте специальные токены и обработайте текст с использованием новой модели
+        input_text = f"You are a friendly chatbot who always responds in the style of a pirate. User: {prompt}"
+        input_ids = tokenizer.encode(input_text, return_tensors='pt')
+        outputs = pipe(input_ids.to('cuda')).to('cpu')
+        generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
         
         return jsonify({'generated_text': generated_text})
     except Exception as e:
